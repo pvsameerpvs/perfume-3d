@@ -75,15 +75,35 @@ export default function Home() {
   const { scrollYProgress } = useScroll();
   const scaleProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
   
-  // Hero Scroll Parallax
-  const { scrollYProgress: heroScrollProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"]
-  });
+  // Hero Frame Scroll Animation
   
-  const heroOpacity = useTransform(heroScrollProgress, [0, 0.8], [1, 0]);
-  const heroScale = useTransform(heroScrollProgress, [0, 1], [1, 1.08]);
-  const bottleY = useTransform(heroScrollProgress, [0, 1], [0, 80]);
+  const [currentFrame, setCurrentFrame] = useState(66);
+  const startFrame = 75;
+  const endFrame = 181;
+  const prevBatchRef = useRef(0);
+  
+  // Global scroll drives frame animation across entire page (skip first 45 frames)
+  useEffect(() => {
+    const unsub = scrollYProgress.onChange((latest) => {
+      const frame = Math.round(startFrame + latest * (endFrame - startFrame));
+      setCurrentFrame(Math.min(endFrame, Math.max(startFrame, frame)));
+    });
+    return () => unsub();
+  }, [scrollYProgress]);
+  
+  // Preload nearby frames for smooth animation
+  useEffect(() => {
+    const batch = Math.floor((currentFrame - startFrame) / 10);
+    if (batch !== prevBatchRef.current) {
+      prevBatchRef.current = batch;
+      const start = Math.max(startFrame, currentFrame - 8);
+      const end = Math.min(endFrame, currentFrame + 8);
+      for (let i = start; i <= end; i++) {
+        const preloadImg = new window.Image();
+        preloadImg.src = `/images/herosection/ezgif-frame-${String(i).padStart(3, '0')}.png`;
+      }
+    }
+  }, [currentFrame]);
   
   // Details Scroll reveal
   const detailsInView = useInView(detailsRef, { once: false, amount: 0.2 });
@@ -194,14 +214,26 @@ export default function Home() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full overflow-hidden bg-[#030303]">
-      {/* Global Smoke Background effect */}
-      <div className="smoke-overlay" />
+    <>
+      {/* Full-page Frame Background — animates across entire scroll */}
+      <div className="fixed inset-0 w-full h-full z-0">
+        <img
+          src={`/images/herosection/ezgif-frame-${String(currentFrame).padStart(3, '0')}.png`}
+          alt=""
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
+      </div>
+      {/* Dark overlay for content readability across all sections */}
       
-      {/* Golden spotlight glows */}
-      <div className="glow-spotlight glow-gold w-[500px] h-[500px] top-[10%] left-[-10%]" />
-      <div className="glow-spotlight glow-gold w-[600px] h-[600px] top-[40%] right-[-10%]" />
-      <div className="glow-spotlight glow-gold w-[500px] h-[500px] bottom-[15%] left-[20%]" />
+      <div ref={containerRef} className="relative w-full overflow-hidden">
+        {/* Global Smoke Background effect */}
+        <div className="smoke-overlay" />
+        
+        {/* Golden spotlight glows */}
+        <div className="glow-spotlight glow-gold w-[500px] h-[500px] top-[10%] left-[-10%]" />
+        <div className="glow-spotlight glow-gold w-[600px] h-[600px] top-[40%] right-[-10%]" />
+        <div className="glow-spotlight glow-gold w-[500px] h-[500px] bottom-[15%] left-[20%]" />
 
       {/* Progress Scroll Bar at the top */}
       <motion.div 
@@ -262,12 +294,7 @@ export default function Home() {
             </button>
 
             {/* CTA Button */}
-            <button
-              onClick={() => scrollToSection("collection")}
-              className="btn-gold hidden sm:flex !py-2.5 !px-6"
-            >
-              Order Now
-            </button>
+           
 
             {/* Mobile Hamburger Button */}
             <button
@@ -330,97 +357,42 @@ export default function Home() {
       </AnimatePresence>
 
 
-      {/* ================= 2. CINEMATIC HERO SECTION ================= */}
+      {/* ================= 2. SCROLL FRAME HERO SECTION ================= */}
       <section 
         id="home" 
         ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center section-padding pt-32 overflow-hidden z-10"
+        className="relative h-[300vh] z-10"
       >
-        <div className="max-w-7xl mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-20">
-          
-          {/* Hero Branding Info */}
-          <motion.div 
-            style={{ opacity: heroOpacity }}
-            className="flex flex-col text-center lg:text-left items-center lg:items-start"
-          >
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              className="text-xs uppercase tracking-[0.3em] text-[#c5a059] font-semibold mb-4"
-            >
-              Premium Luxury Fragrance | Long Lasting | Elegant Aroma
-            </motion.p>
-            
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="text-6xl sm:text-7xl xl:text-8xl font-bold font-serif mb-6 leading-tight"
-            >
-              <span className="gold-gradient-text">RIHU</span> <br/>
-              <span className="text-white">Perfume</span>
-            </motion.h1>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 25 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1.2, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="text-[#d8d2c4] text-lg sm:text-xl font-light tracking-[0.05em] leading-relaxed max-w-lg mb-8"
-            >
-              A fragrance of elegance, confidence, and timeless luxury.
-            </motion.p>
+        {/* Sticky container — stays fixed while scrolling through the hero */}
+        <div className="sticky top-0 w-full h-screen overflow-hidden">
 
-            {/* Scroll Indicator */}
+          {/* Simple brand overlay centered */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-[0.3em] text-[#c5a059] font-semibold mb-4 [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
+                Premium Luxury Fragrance
+              </p>
+              <h1 className="text-6xl sm:text-7xl xl:text-8xl font-bold font-serif leading-tight [text-shadow:0_4px_16px_rgba(0,0,0,0.9)]">
+                <span className="gold-gradient-text">RIHU</span> <br/>
+                <span className="text-white">Perfume</span>
+              </h1>
+            </div>
+          </div>
+
+          {/* Scroll indicator */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.7 }}
               transition={{ delay: 1, duration: 1 }}
-              className="flex items-center gap-3 text-xs tracking-[0.2em] uppercase text-[#c5a059]/70 animate-bounce mt-4 cursor-pointer"
+              className="flex items-center gap-3 text-xs tracking-[0.2em] uppercase text-[#c5a059]/70 animate-bounce cursor-pointer"
               onClick={() => scrollToSection("details")}
             >
               <span>Scroll to Explore</span>
               <ArrowRight className="w-3.5 h-3.5 rotate-90" />
             </motion.div>
-          </motion.div>
-
-          {/* Perfume Bottle Visual container */}
-          <div className="flex justify-center items-center relative h-[400px] sm:h-[500px] lg:h-[650px] w-full">
-            {/* Background Halo Glow */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 2, ease: "easeOut" }}
-              className="absolute w-[300px] sm:w-[450px] h-[300px] sm:h-[450px] rounded-full bg-gradient-to-r from-[#c5a059]/10 to-transparent blur-[70px] z-0"
-            />
-            
-            {/* Bottle Render Image */}
-            <motion.div 
-              style={{ y: bottleY, scale: heroScale }}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
-              className="floating-bottle relative z-10 w-full h-full max-w-[320px] sm:max-w-[420px]"
-            >
-              <Image
-                src="/images/rihu_perfume_hero.png"
-                alt="RIHU Signature Luxury Black Perfume Bottle with Golden Smoke Background"
-                fill
-                priority
-                className="object-contain filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.9)]"
-                sizes="(max-w-7xl) 100vw, 50vw"
-              />
-            </motion.div>
-
-            {/* Smoke Wisps Animated Elements inside Hero */}
-            <div className="absolute inset-0 pointer-events-none mix-blend-screen opacity-20 z-20">
-              {/* Dynamic light rays or golden particle effects */}
-              <div className="absolute top-[20%] left-[20%] w-1.5 h-1.5 rounded-full bg-[#c5a059] blur-[1px] animate-pulse" />
-              <div className="absolute top-[40%] right-[30%] w-2 h-2 rounded-full bg-[#e5d5b7] blur-[1px] animate-ping" />
-              <div className="absolute bottom-[30%] left-[40%] w-1 h-1 rounded-full bg-[#c5a059] blur-[2px] animate-pulse" />
-            </div>
           </div>
-          
+
         </div>
       </section>
 
@@ -429,7 +401,7 @@ export default function Home() {
       <section 
         id="details" 
         ref={detailsRef}
-        className="relative section-padding border-t border-[#c5a059]/5 bg-[#050505]/40 z-10"
+        className="relative section-padding border-t border-[#c5a059]/5 z-10"
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -569,7 +541,7 @@ export default function Home() {
 
 
       {/* ================= 4. ABOUT RIHU SECTION ================= */}
-      <section id="about" className="relative section-padding overflow-hidden z-10 bg-[#020202]">
+      <section id="about" className="relative section-padding overflow-hidden z-10">
         {/* Background ambient gold lines */}
         <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]">
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -650,7 +622,7 @@ export default function Home() {
       <section 
         id="experience" 
         ref={experienceRef} 
-        className="relative min-h-[180vh] bg-[#030303]/60 z-10 border-t border-b border-[#c5a059]/5"
+        className="relative min-h-[180vh] z-10 border-t border-b border-[#c5a059]/5"
       >
         <div className="sticky top-0 left-0 w-full h-screen flex flex-col justify-center overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -787,7 +759,7 @@ export default function Home() {
       {/* ================= 6. SIGNATURE COLLECTION SECTION ================= */}
       <section 
         id="collection" 
-        className="relative section-padding bg-[#050505]/60 z-10 border-b border-[#c5a059]/5"
+        className="relative section-padding z-10 border-b border-[#c5a059]/5"
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -893,7 +865,7 @@ export default function Home() {
       {/* ================= 7. FRAGRANCE NOTES SECTION ================= */}
       <section 
         id="notes" 
-        className="relative section-padding overflow-hidden z-10 bg-[#020202]"
+        className="relative section-padding overflow-hidden z-10"
       >
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -987,7 +959,7 @@ export default function Home() {
       {/* ================= 8. WHY CHOOSE RIHU SECTION ================= */}
       <section 
         id="why-rihu" 
-        className="relative section-padding bg-[#050505]/40 z-10 border-t border-b border-[#c5a059]/5"
+        className="relative section-padding z-10 border-t border-b border-[#c5a059]/5"
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -1065,7 +1037,7 @@ export default function Home() {
       <section 
         id="packaging" 
         ref={packagingRef}
-        className="relative section-padding overflow-hidden z-10 bg-[#020202]"
+        className="relative section-padding overflow-hidden z-10"
       >
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
@@ -1127,7 +1099,7 @@ export default function Home() {
       {/* ================= 10. REVIEW / TRUST SECTION ================= */}
       <section 
         id="reviews" 
-        className="relative section-padding bg-[#050505]/40 z-10 border-t border-b border-[#c5a059]/5"
+        className="relative section-padding z-10 border-t border-b border-[#c5a059]/5"
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -1204,7 +1176,7 @@ export default function Home() {
       {/* ================= 11. CTA SECTION ================= */}
       <section 
         ref={ctaRef}
-        className="relative section-padding overflow-hidden z-10 bg-[#020202] border-b border-[#c5a059]/5"
+        className="relative section-padding overflow-hidden z-10 border-b border-[#c5a059]/5"
       >
         {/* Soft moving golden rays overlay */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(197,160,89,0.06)_0%,transparent_60%)] pointer-events-none" />
@@ -1251,7 +1223,7 @@ export default function Home() {
       {/* ================= 12. CONTACT SECTION ================= */}
       <section 
         id="contact" 
-        className="relative section-padding bg-[#030303] z-10"
+        className="relative section-padding z-10"
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-stretch">
@@ -1394,7 +1366,7 @@ export default function Home() {
 
 
       {/* ================= 13. FOOTER ================= */}
-      <footer className="bg-[#020202] border-t border-[#c5a059]/10 pt-16 pb-8 z-10 relative">
+      <footer className="border-t border-[#c5a059]/10 pt-16 pb-8 z-10 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
             
@@ -1604,5 +1576,6 @@ export default function Home() {
         )}
       </AnimatePresence>
     </div>
+  </>
   );
 }
